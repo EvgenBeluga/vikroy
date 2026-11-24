@@ -7,6 +7,7 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
@@ -14,18 +15,26 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
+import java.util.List;
+
 public class Main extends Application {
 
     private TextField bustField, waistField, hipsField, torsoField, seatHeightField, backWidthField;
     private TextField armholeDepthField, shoulderLengthField, neckCircField;
+    private TextField sleeveLengthField, upperArmCircField, wristCircField;
+    private TextField frontSkirtLengthField, backSkirtLengthField;
+
     private Canvas canvas;
+    private PatternBuilder builder;
 
     @Override
     public void start(Stage primaryStage) {
+        builder = new PatternBuilder();
+
         GridPane inputGrid = new GridPane();
         inputGrid.setPadding(new Insets(10));
         inputGrid.setHgap(10);
-        inputGrid.setVgap(8);
+        inputGrid.setVgap(6);
 
         bustField = addMeasurementField(inputGrid, "Обхват груди (см):", 0);
         waistField = addMeasurementField(inputGrid, "Обхват талии (см):", 1);
@@ -33,35 +42,40 @@ public class Main extends Application {
         torsoField = addMeasurementField(inputGrid, "Длина туловища (плечо-талия), см:", 3);
         seatHeightField = addMeasurementField(inputGrid, "Высота сидения (талия-ластовица), см:", 4);
         backWidthField = addMeasurementField(inputGrid, "Ширина спины (см):", 5);
-
-        // Новые мерки
         armholeDepthField = addMeasurementField(inputGrid, "Глубина проймы (см):", 6);
         shoulderLengthField = addMeasurementField(inputGrid, "Длина плеча (см):", 7);
         neckCircField = addMeasurementField(inputGrid, "Обхват шеи (см):", 8);
 
+        sleeveLengthField = addMeasurementField(inputGrid, "Длина рукава (см):", 9);
+        upperArmCircField = addMeasurementField(inputGrid, "Обхват плеча (Оп, см):", 10);
+        wristCircField = addMeasurementField(inputGrid, "Обхват запястья (Оз, см):", 11);
+
+        frontSkirtLengthField = addMeasurementField(inputGrid, "Длина юбки спереди (Дюп, см):", 12);
+        backSkirtLengthField = addMeasurementField(inputGrid, "Длина юбки сзади (Дюс, см):", 13);
+
         Button generateButton = new Button("Построить выкройку");
         Button pdfButton = new Button("Сохранить в PDF");
 
-        inputGrid.add(generateButton, 1, 9);
-        inputGrid.add(pdfButton, 1, 10);
+        inputGrid.add(generateButton, 1, 14);
+        inputGrid.add(pdfButton, 1, 15);
 
-        canvas = new Canvas(600, 700);
+        // Canvas и ScrollPane для прокрутки
+        canvas = new Canvas(1200, 1200);
         GraphicsContext gc = canvas.getGraphicsContext2D();
         clearCanvas(gc);
 
+        ScrollPane scrollPane = new ScrollPane(canvas);
+        scrollPane.setFitToWidth(false);
+        scrollPane.setFitToHeight(false);
+        scrollPane.setPannable(true);
+
+        setTestValues();
+
         generateButton.setOnAction(e -> {
             try {
-                double bust = Double.parseDouble(bustField.getText());
-                double waist = Double.parseDouble(waistField.getText());
-                double hips = Double.parseDouble(hipsField.getText());
-                double torso = Double.parseDouble(torsoField.getText());
-                double seatHeight = Double.parseDouble(seatHeightField.getText());
-                double backWidth = Double.parseDouble(backWidthField.getText());
-                double armholeDepth = Double.parseDouble(armholeDepthField.getText());
-                double shoulderLength = Double.parseDouble(shoulderLengthField.getText());
-                double neckCirc = Double.parseDouble(neckCircField.getText());
-
-                drawPattern(gc, bust, waist, hips, torso, seatHeight, backWidth, armholeDepth, shoulderLength, neckCirc);
+                Measurements m = collectMeasurements();
+                PatternData data = builder.buildForCanvas(m);
+                drawAll(gc, data);
             } catch (NumberFormatException ex) {
                 System.out.println("Ошибка: введите числа во все поля!");
             }
@@ -69,17 +83,8 @@ public class Main extends Application {
 
         pdfButton.setOnAction(e -> {
             try {
-                double bust = Double.parseDouble(bustField.getText());
-                double waist = Double.parseDouble(waistField.getText());
-                double hips = Double.parseDouble(hipsField.getText());
-                double torso = Double.parseDouble(torsoField.getText());
-                double seatHeight = Double.parseDouble(seatHeightField.getText());
-                double backWidth = Double.parseDouble(backWidthField.getText());
-                double armholeDepth = Double.parseDouble(armholeDepthField.getText());
-                double shoulderLength = Double.parseDouble(shoulderLengthField.getText());
-                double neckCirc = Double.parseDouble(neckCircField.getText());
-
-                PdfExporter.export(bust, waist, hips, torso, seatHeight, backWidth, armholeDepth, shoulderLength, neckCirc);
+                Measurements m = collectMeasurements();
+                PdfExporter.export(m);
             } catch (NumberFormatException ex) {
                 System.out.println("Ошибка: введите числа во все поля!");
             }
@@ -87,103 +92,90 @@ public class Main extends Application {
 
         BorderPane root = new BorderPane();
         root.setLeft(new VBox(inputGrid));
-        root.setCenter(canvas);
+        root.setCenter(scrollPane); // прокручиваемая область
 
-        Scene scene = new Scene(root, 900, 750);
-        primaryStage.setTitle("Построение выкройки купальника (PRO)");
+        Scene scene = new Scene(root, 1000, 800); // уменьшили окно
+        primaryStage.setTitle("Конструктор купальников (Lana-style)");
         primaryStage.setScene(scene);
         primaryStage.show();
+    }
+
+    private void setTestValues() {
+        bustField.setText("68");
+        waistField.setText("56");
+        hipsField.setText("69");
+        torsoField.setText("32");
+        seatHeightField.setText("54");
+        backWidthField.setText("28");
+        armholeDepthField.setText("20");
+        shoulderLengthField.setText("20");
+        neckCircField.setText("28");
+
+        sleeveLengthField.setText("50");
+        upperArmCircField.setText("20");
+        wristCircField.setText("13.5");
+
+        frontSkirtLengthField.setText("23");
+        backSkirtLengthField.setText("28");
+    }
+
+    private Measurements collectMeasurements() {
+        return new Measurements(
+                Double.parseDouble(bustField.getText()),
+                Double.parseDouble(waistField.getText()),
+                Double.parseDouble(hipsField.getText()),
+                Double.parseDouble(torsoField.getText()),
+                Double.parseDouble(seatHeightField.getText()),
+                Double.parseDouble(backWidthField.getText()),
+                Double.parseDouble(armholeDepthField.getText()),
+                Double.parseDouble(shoulderLengthField.getText()),
+                Double.parseDouble(neckCircField.getText()),
+                Double.parseDouble(sleeveLengthField.getText()),
+                Double.parseDouble(upperArmCircField.getText()),
+                Double.parseDouble(wristCircField.getText()),
+                Double.parseDouble(frontSkirtLengthField.getText()),
+                Double.parseDouble(backSkirtLengthField.getText())
+        );
     }
 
     private void clearCanvas(GraphicsContext gc) {
         gc.setFill(Color.WHITE);
         gc.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
-
-        // Сетка
         gc.setStroke(Color.LIGHTGRAY);
         gc.setLineWidth(0.5);
-        for (int i = 0; i < canvas.getWidth(); i += 20) {
-            gc.strokeLine(i, 0, i, canvas.getHeight());
-        }
-        for (int i = 0; i < canvas.getHeight(); i += 20) {
-            gc.strokeLine(0, i, canvas.getWidth(), i);
-        }
-
-        // Оси
+        for (int i = 0; i < canvas.getWidth(); i += 20) gc.strokeLine(i, 0, i, canvas.getHeight());
+        for (int i = 0; i < canvas.getHeight(); i += 20) gc.strokeLine(0, i, canvas.getWidth(), i);
         gc.setStroke(Color.GRAY);
         gc.setLineWidth(1);
-        gc.strokeLine(0, canvas.getHeight() - 20, canvas.getWidth(), canvas.getHeight() - 20); // X
-        gc.strokeLine(20, 0, 20, canvas.getHeight()); // Y
+        gc.strokeLine(0, canvas.getHeight() - 20, canvas.getWidth(), canvas.getHeight() - 20);
+        gc.strokeLine(20, 0, 20, canvas.getHeight());
     }
 
-    private void drawPattern(GraphicsContext gc, double bust, double waist, double hips, double torso,
-                             double seatHeight, double backWidth, double armholeDepth, double shoulderLength, double neckCirc) {
+    private void drawPath(GraphicsContext gc, List<PatternPoint> points, Color color, double width) {
+        if (points == null || points.size() < 2) return;
+        gc.setStroke(color);
+        gc.setLineWidth(width);
+        gc.beginPath();
+        gc.moveTo(points.get(0).x, points.get(0).y);
+        for (int i = 1; i < points.size(); i++) {
+            gc.lineTo(points.get(i).x, points.get(i).y);
+        }
+        gc.stroke();
+    }
+
+    private void drawAll(GraphicsContext gc, PatternData data) {
         clearCanvas(gc);
 
-        double scale = 2.5;
-        double centerX = 300;
-        double startY = 100; // Отступ сверху
+        // Лиф
+        drawPath(gc, data.frontPoints, Color.BLUE, 2);
+        drawPath(gc, data.backPoints, Color.BLACK, 2);
 
-        // === ФОРМУЛЫ ===
-        double stretch = 0.88;
-        double chestW = (bust / 4.0) * stretch * scale;
-        double waistW = (waist / 4.0) * stretch * scale;
-        double hipW = (hips / 4.0) * stretch * scale;
-        double bodyH = torso * scale;
-        double seatH = seatHeight * scale;
-        double totalH = bodyH + seatH;
+        // Рукав
+        drawPath(gc, data.sleevePoints, Color.DARKGREEN, 2);
 
-        double neckDepth = Math.min(chestW / 3.0, 7.0 * scale);
-        double backNeckDepth = 2.0 * scale;
-        double armholeD = armholeDepth * scale;
-        double shoulderL = shoulderLength * scale;
-
-        // Точки
-        double topY = startY;
-        double bottomY = startY + totalH;
-        double armholeStartX = centerX - chestW / 2;
-
-        // --- Рисуем ПЕРЕД (синий) ---
-        gc.setStroke(Color.BLUE);
-        gc.setLineWidth(2);
-
-        // Плечо и горловина
-        gc.strokeLine(centerX, topY, centerX - shoulderL, topY);
-        gc.beginPath();
-        gc.moveTo(centerX - shoulderL, topY);
-        gc.quadraticCurveTo(centerX - shoulderL + neckDepth / 4, topY + neckDepth / 3,
-                centerX, topY + neckDepth);
-        gc.stroke();
-
-        // Пройма
-        gc.beginPath();
-        gc.moveTo(centerX - shoulderL, topY);
-        gc.quadraticCurveTo(centerX - chestW / 2 - 10, topY + armholeD / 2,
-                centerX - waistW / 2, topY + armholeD);
-        gc.stroke();
-
-        // Боковой шов и ластовица (с выемкой)
-        gc.strokeLine(centerX - waistW / 2, topY + armholeD, centerX - hipW / 2, bottomY - seatH * 0.2);
-        gc.beginPath();
-        gc.moveTo(centerX - hipW / 2, bottomY - seatH * 0.2);
-        gc.quadraticCurveTo(centerX - hipW / 4, bottomY, centerX, bottomY);
-        gc.stroke();
-
-        // Вытачка на переде (грудь)
-        double dartY = topY + armholeD * 0.6;
-        gc.setStroke(Color.BLUE);
-        gc.setLineDashes(5, 5);
-        gc.strokeLine(centerX - chestW / 4, dartY, centerX - waistW / 4, dartY + 20);
-        gc.setLineDashes(null);
-
-        // Осевая
-        gc.setStroke(Color.RED);
-        gc.setLineDashes(5, 5);
-        gc.strokeLine(centerX, topY, centerX, bottomY);
-        gc.setLineDashes(null);
-
-        gc.setFill(Color.BLACK);
-        gc.fillText("Перед (PRO)", centerX - 50, topY - 20);
+        // Юбка
+        drawPath(gc, data.frontSkirtPoints, Color.PURPLE, 2);
+        drawPath(gc, data.backSkirtPoints, Color.PURPLE, 2);
     }
 
     private TextField addMeasurementField(GridPane grid, String labelText, int row) {

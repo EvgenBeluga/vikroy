@@ -2,8 +2,6 @@ package org.example;
 
 import com.lowagie.text.Document;
 import com.lowagie.text.DocumentException;
-import com.lowagie.text.Element;
-import com.lowagie.text.FontFactory;
 import com.lowagie.text.PageSize;
 import com.lowagie.text.pdf.PdfContentByte;
 import com.lowagie.text.pdf.PdfWriter;
@@ -14,80 +12,70 @@ import java.io.IOException;
 
 public class PdfExporter {
 
-    public static void export(double bust, double waist, double hips, double torso, double seatHeight,
-                              double backWidth, double armholeDepth, double shoulderLength, double neckCirc) {
-        String folderPath = "C:\\Users\\Пользователь\\Documents\\Выкройка";
+    public static void export(Measurements m) {
+        String userHome = System.getProperty("user.home");
+        String folderPath = userHome + File.separator + "Documents" + File.separator + "Выкройка";
         File folder = new File(folderPath);
         if (!folder.exists()) folder.mkdirs();
-        String filePath = folderPath + "\\pattern_pro.pdf";
+        String filePath = folderPath + File.separator + "pattern_pro.pdf";
 
+        float cm = 28.35f;
+        float margin = 30;
         float pageWidth = PageSize.A4.getWidth();
         float pageHeight = PageSize.A4.getHeight();
-        float margin = 20;
         float usableWidth = pageWidth - 2 * margin;
         float usableHeight = pageHeight - 2 * margin;
-        float cm = 28.35f;
-        float overlap = 1 * cm;
 
+        // === РАСЧЁТЫ В СМ ===
         double stretch = 0.88;
-        double chestWidthCm = (bust / 4.0) * stretch;
-        double waistWidthCm = (waist / 4.0) * stretch;
-        double hipWidthCm = (hips / 4.0) * stretch;
-        double bodyHeightCm = torso;
-        double seatHeightCm = seatHeight;
-        double totalHeightCm = torso + seatHeight;
+        double chestW = (m.bust / 4.0) * stretch;
+        double waistW = (m.waist / 4.0) * stretch;
+        double hipW = (m.hips / 4.0) * stretch;
+        double bodyH = m.torso;
+        double seatH = m.seatHeight;
+        double totalH = bodyH + seatH;
+        double neckD = Math.min((m.neckCirc / 6.0) * stretch, 7.0);
+        double backNeckD = 2.0;
+        double armholeD = m.armholeDepth;
+        double shoulderL = m.shoulderLength;
 
-        double neckDepthCm = Math.min(chestWidthCm / 3.0, 7.0);
-        double backNeckDepthCm = 2.0;
+        // Перевод в пункты
+        float cw = (float) chestW * cm;
+        float ww = (float) waistW * cm;
+        float hw = (float) hipW * cm;
+        float bh = (float) bodyH * cm;
+        float sh = (float) seatH * cm;
+        float th = (float) totalH * cm;
+        float nd = (float) neckD * cm;
+        float bnd = (float) backNeckD * cm;
+        float ad = (float) armholeD * cm;
+        float sl = (float) shoulderL * cm;
 
-        double armholeDepthCm = armholeDepth;
-        double shoulderLengthCm = shoulderLength;
+        // Масштаб, чтобы вписать в лист (80% ширины/высоты)
+        float maxW = Math.max(cw, Math.max(ww, hw));
+        float maxH = th;
+        float scaleX = (usableWidth * 0.8f) / maxW;
+        float scaleY = (usableHeight * 0.8f) / maxH;
+        float scale = Math.min(scaleX, scaleY);
+        if (scale > 1.0f) scale = 1.0f;
 
-        float chestWidth = (float) chestWidthCm * cm;
-        float waistWidth = (float) waistWidthCm * cm;
-        float hipWidth = (float) hipWidthCm * cm;
-        float bodyHeight = (float) bodyHeightCm * cm;
-        float seatHeightPt = (float) seatHeightCm * cm;
-        float totalHeight = (float) totalHeightCm * cm;
-        float neckDepth = (float) neckDepthCm * cm;
-        float backNeckDepth = (float) backNeckDepthCm * cm;
-        float armholeDepthPt = (float) armholeDepthCm * cm;
-        float shoulderLengthPt = (float) shoulderLengthCm * cm;
-
-        float maxHalfWidth = Math.max(chestWidth / 2, Math.max(waistWidth / 2, hipWidth / 2));
-        float patternWidth = maxHalfWidth + 20; // только половина + отступ
-        float patternHeight = totalHeight + 60;
-
-        float effectiveWidth = usableWidth - overlap;
-        float effectiveHeight = usableHeight - overlap;
-
-        int cols = (int) Math.ceil(patternWidth / effectiveWidth);
-        int rows = (int) Math.ceil(patternHeight / effectiveHeight);
-        if (cols < 1) cols = 1;
-        if (rows < 1) rows = 1;
-
-        Document document = new Document(PageSize.A4, margin, margin, margin, margin);
         try {
+            Document document = new Document(PageSize.A4, margin, margin, margin, margin);
             PdfWriter writer = PdfWriter.getInstance(document, new FileOutputStream(filePath));
             document.open();
+            PdfContentByte canvas = writer.getDirectContent();
 
-            float shiftX = margin + 10; // левый отступ
+            // === ПЕРЕД (справа) ===
+            float centerX = margin + usableWidth * 0.7f;
+            float topY = margin + usableHeight * 0.85f;
+            drawFront(canvas, centerX, topY, cw * scale, ww * scale, hw * scale, bh * scale, sh * scale, nd * scale, ad * scale, sl * scale);
 
-            System.out.println("Рисуем ПЕРЕД...");
-            drawPart(writer, document, "Перед", cols, rows, effectiveWidth, effectiveHeight,
-                    patternWidth, patternHeight,
-                    chestWidth, waistWidth, hipWidth, bodyHeight, seatHeightPt, totalHeight,
-                    neckDepth, armholeDepthPt, shoulderLengthPt,
-                    maxHalfWidth, // <-- ПЕРЕДАЁМ maxHalfWidth
-                    cm, margin, pageWidth, pageHeight, shiftX, true);
+            // === СПИНКА (слева) ===
+            float backCenterX = centerX - maxW * scale - 30;
+            drawBack(canvas, backCenterX, topY, cw * scale, ww * scale, hw * scale, bh * scale, sh * scale, bnd * scale, ad * scale, sl * scale);
 
-            System.out.println("Рисуем СПИНКУ...");
-            drawPart(writer, document, "Спинка", cols, rows, effectiveWidth, effectiveHeight,
-                    patternWidth, patternHeight,
-                    chestWidth, waistWidth, hipWidth, bodyHeight, seatHeightPt, totalHeight,
-                    backNeckDepth, armholeDepthPt, shoulderLengthPt,
-                    maxHalfWidth, // <-- ПЕРЕДАЁМ maxHalfWidth
-                    cm, margin, pageWidth, pageHeight, shiftX, false);
+            // === КОНТРОЛЬНЫЙ КВАДРАТ ===
+            drawControlSquare(canvas, margin + 10, margin + 10, cm);
 
             document.close();
             System.out.println("PDF сохранён по пути: " + filePath);
@@ -96,149 +84,101 @@ public class PdfExporter {
         }
     }
 
-    private static void drawPart(PdfWriter writer, Document document, String partName,
-                                 int cols, int rows, float effectiveWidth, float effectiveHeight,
-                                 float patternWidth, float patternHeight,
-                                 float chestWidth, float waistWidth, float hipWidth,
-                                 float bodyHeight, float seatHeightPt, float totalHeight,
-                                 float neckDepth, float armholeDepth, float shoulderLength,
-                                 float maxHalfWidth, // <-- НОВЫЙ ПАРАМЕТР
-                                 float cm, float margin, float pageWidth, float pageHeight,
-                                 float shiftX, boolean isFront) throws DocumentException {
+    private static void drawFront(PdfContentByte canvas, float centerX, float topY,
+                                  float cw, float ww, float hw, float bh, float sh,
+                                  float nd, float ad, float sl) {
+        canvas.setLineWidth(1.5f);
+        canvas.setRGBColorStroke(0, 0, 255); // Синий
 
-        for (int row = 0; row < rows; row++) {
-            for (int col = 0; col < cols; col++) {
-                if (writer.getPageNumber() > 0) document.newPage();
-                PdfContentByte canvas = writer.getDirectContent();
+        // 1. Плечо (от центра влево)
+        canvas.moveTo(centerX, topY);
+        canvas.lineTo(centerX - sl, topY);
 
-                float offsetX = col * effectiveWidth;
-                float offsetY = row * effectiveHeight;
+        // 2. Горловина (плавная дуга от плеча к центру)
+        canvas.curveTo(
+                centerX - sl + nd / 2, topY - nd / 2,
+                centerX - nd / 1.5f, topY - nd * 0.9f,
+                centerX, topY - nd
+        );
 
-                canvas.saveState();
-                canvas.concatCTM(1, 0, 0, 1, -offsetX + shiftX, -offsetY);
+        // 3. Пройма (от конца плеча вниз к талии)
+        float armholeStartX = centerX - cw / 2;
+        canvas.moveTo(centerX - sl, topY);
+        canvas.curveTo(
+                armholeStartX - 5, topY - ad / 2,
+                centerX - ww / 2, topY - ad * 0.75f,
+                centerX - ww / 2, topY - ad
+        );
 
-                // --- Сетка (каждые 5 см) ---
-                canvas.saveState();
-                canvas.setLineWidth(0.3f);
-                canvas.setRGBColorStroke(220, 220, 220);
-                float gridStep = 5 * cm;
-                for (float x = 0; x < patternWidth; x += gridStep) {
-                    canvas.moveTo(x, 0);
-                    canvas.lineTo(x, patternHeight);
-                }
-                for (float y = 0; y < patternHeight; y += gridStep) {
-                    canvas.moveTo(0, y);
-                    canvas.lineTo(patternWidth, y);
-                }
-                canvas.stroke();
-                canvas.restoreState();
+        // 4. Боковой шов (от талии к бедру)
+        canvas.lineTo(centerX - hw / 2, topY - bh + sh * 0.3f);
 
-                // --- Рисуем контур ---
-                float centerX = maxHalfWidth + 10; // осевая линия
-                float bottomY = 30;
-                float topY = bottomY + totalHeight;
+        // 5. Ластовица (плавная кривая к центру)
+        canvas.curveTo(
+                centerX - hw / 4, topY - bh + sh * 0.1f,
+                centerX - hw / 6, topY - bh,
+                centerX, topY - bh
+        );
 
-                canvas.setLineWidth(1.5f);
+        // 6. Осевая линия (замыкаем)
+        canvas.lineTo(centerX, topY);
 
-                // 1. Плечо (от осевой линии влево)
-                canvas.moveTo(centerX, topY);
-                canvas.lineTo(centerX - shoulderLength, topY);
+        canvas.stroke();
+    }
 
-                // 2. Горловина
-                canvas.curveTo(
-                        centerX - shoulderLength + neckDepth / 4, topY - neckDepth / 3,
-                        centerX - neckDepth / 2, topY - neckDepth * 0.8f,
-                        centerX, topY - neckDepth
-                );
+    private static void drawBack(PdfContentByte canvas, float centerX, float topY,
+                                 float cw, float ww, float hw, float bh, float sh,
+                                 float bnd, float ad, float sl) {
+        canvas.setLineWidth(1.5f);
+        canvas.setRGBColorStroke(0, 0, 0); // Чёрный
 
-                // 3. Пройма
-                float armholeStartX = centerX - chestWidth / 2;
-                canvas.moveTo(centerX - shoulderLength, topY);
-                canvas.curveTo(
-                        armholeStartX - 10, topY - armholeDepth / 2,
-                        centerX - waistWidth / 2, topY - armholeDepth * 0.75f,
-                        centerX - waistWidth / 2, topY - armholeDepth
-                );
+        // 1. Плечо
+        canvas.moveTo(centerX, topY);
+        canvas.lineTo(centerX - sl, topY);
 
-                // 4. Боковой шов
-                canvas.lineTo(centerX - hipWidth / 2, bottomY + seatHeightPt * 0.3f);
+        // 2. Горловина спинки (мелкая)
+        canvas.curveTo(
+                centerX - sl + bnd / 2, topY - bnd / 2,
+                centerX - bnd / 1.5f, topY - bnd * 0.9f,
+                centerX, topY - bnd
+        );
 
-                // 5. Ластовица
-                canvas.curveTo(
-                        centerX - hipWidth / 4, bottomY - 5,
-                        centerX - hipWidth / 6, bottomY,
-                        centerX, bottomY
-                );
+        // 3. Пройма спинки
+        float armholeStartX = centerX - cw / 2;
+        canvas.moveTo(centerX - sl, topY);
+        canvas.curveTo(
+                armholeStartX - 5, topY - ad / 2,
+                centerX - ww / 2, topY - ad * 0.75f,
+                centerX - ww / 2, topY - ad
+        );
 
-                // 6. Осевая
-                canvas.moveTo(centerX, topY);
-                canvas.lineTo(centerX, bottomY);
+        // 4. Боковой шов
+        canvas.lineTo(centerX - hw / 2, topY - bh + sh * 0.3f);
 
-                canvas.stroke();
+        // 5. Ластовица
+        canvas.curveTo(
+                centerX - hw / 4, topY - bh + sh * 0.1f,
+                centerX - hw / 6, topY - bh,
+                centerX, topY - bh
+        );
 
-                // 7. Вытачка (только для переда)
-                if (isFront) {
-                    float dartY = topY - armholeDepth * 0.6f;
-                    canvas.saveState();
-                    canvas.setLineWidth(1f);
-                    canvas.setLineDash(4, 4);
-                    canvas.moveTo(centerX - chestWidth / 4, dartY);
-                    canvas.lineTo(centerX - waistWidth / 4, dartY - 15);
-                    canvas.stroke();
-                    canvas.restoreState();
-                }
+        // 6. Осевая
+        canvas.lineTo(centerX, topY);
 
-                canvas.restoreState();
+        canvas.stroke();
+    }
 
-                // --- Метки для склейки ---
-                canvas.saveState();
-                canvas.setLineWidth(0.5f);
-                canvas.setLineDash(3, 3);
-                float markLen = 10;
-
-                if (col > 0) {
-                    canvas.moveTo(margin, pageHeight / 2 - markLen);
-                    canvas.lineTo(margin, pageHeight / 2 + markLen);
-                    canvas.stroke();
-                }
-                if (col < cols - 1) {
-                    canvas.moveTo(pageWidth - margin, pageHeight / 2 - markLen);
-                    canvas.lineTo(pageWidth - margin, pageHeight / 2 + markLen);
-                    canvas.stroke();
-                }
-                if (row > 0) {
-                    canvas.moveTo(pageWidth / 2 - markLen, margin);
-                    canvas.lineTo(pageWidth / 2 + markLen, margin);
-                    canvas.stroke();
-                }
-                if (row < rows - 1) {
-                    canvas.moveTo(pageWidth / 2 - markLen, pageHeight - margin);
-                    canvas.lineTo(pageWidth / 2 + markLen, pageHeight - margin);
-                    canvas.stroke();
-                }
-                canvas.restoreState();
-
-                // --- Название детали и номер листа ---
-                canvas.beginText();
-                canvas.setFontAndSize(FontFactory.getFont(FontFactory.HELVETICA, 10).getBaseFont(), 10);
-                String title = partName + " — лист " + (row * cols + col + 1) + "/" + (rows * cols);
-                canvas.showTextAligned(Element.ALIGN_LEFT, title, margin + 10, pageHeight - margin - 10, 0);
-                canvas.endText();
-
-                // --- Контрольный квадрат ---
-                if (row == 0 && col == 0) {
-                    canvas.saveState();
-                    canvas.setLineWidth(1f);
-                    float sqSize = 10 * cm;
-                    canvas.rectangle(margin + 10, margin + 10, sqSize, sqSize);
-                    canvas.stroke();
-                    canvas.beginText();
-                    canvas.setFontAndSize(FontFactory.getFont(FontFactory.HELVETICA, 10).getBaseFont(), 10);
-                    canvas.showTextAligned(Element.ALIGN_LEFT, "10 см", margin + 10, margin + 10 + sqSize + 5, 0);
-                    canvas.endText();
-                    canvas.restoreState();
-                }
-            }
-        }
+    private static void drawControlSquare(PdfContentByte canvas, float x, float y, float cm) {
+        canvas.saveState();
+        canvas.setLineWidth(1f);
+        canvas.setRGBColorStroke(0, 0, 0);
+        float sqSize = 10 * cm;
+        canvas.rectangle(x, y, sqSize, sqSize);
+        canvas.stroke();
+        canvas.beginText();
+        canvas.setFontAndSize(com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA, 10).getBaseFont(), 10);
+        canvas.showTextAligned(com.lowagie.text.Element.ALIGN_LEFT, "10 см", x, y + sqSize + 5, 0);
+        canvas.endText();
+        canvas.restoreState();
     }
 }
