@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: vikroy
+
+  datasource:
+    url: jdbc:postgresql://localhost:5433/vikroy
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate   # схему создаёт Liquibase, Hibernate только проверяет
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        physical_naming_strategy: org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy
+    show-sql: false
+
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    enabled: true
+
+  h2:
+    console:
+      enabled: false
+
+server:
+  port: 8080
+
+logging:
+  level:
+    com.vikroy: DEBUG
+    org.springframework.security: INFO

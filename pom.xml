@@ -1,51 +1,54 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <!-- 1. ДОБАВЛЯЕМ РОДИТЕЛЬСКИЙ POM SPRING BOOT -->
-    <!-- Он автоматически управляет версиями всех spring-boot-starter и совместимых библиотек -->
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.2.5</version> <!-- Стабильная версия, отлично работающая с Java 21 -->
+        <version>3.2.5</version>
         <relativePath/>
     </parent>
 
-    <groupId>org.example</groupId>
+    <groupId>com.vikroy</groupId>
     <artifactId>vikroy</artifactId>
     <version>1.0-SNAPSHOT</version>
     <name>vikroy</name>
-    <description>Pattern builder with Spring Boot and Russian payments</description>
+    <description>Pattern builder for rhythmic gymnastics swimsuits</description>
 
     <properties>
         <java.version>21</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <javafx.version>21.0.2</javafx.version>
+        <lombok.version>1.18.38</lombok.version>
     </properties>
 
     <dependencies>
-        <!-- === SPRING BOOT STARTERS (версии указывать НЕ НУЖНО, их дает parent) === -->
+        <!-- Web -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+
+        <!-- Security -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
-        <!-- Используем JPA вместо простого JDBC для удобной работы с @Entity -->
+
+        <!-- JPA (вместо JDBC) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-jdbc</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-jdbc</artifactId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
 
-        <!-- Liquibase -->
+        <!-- Validation для DTO -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- Liquibase для миграций -->
         <dependency>
             <groupId>org.liquibase</groupId>
             <artifactId>liquibase-core</artifactId>
@@ -55,62 +58,56 @@
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
         </dependency>
-        <!-- H2 база для локальных тестов без установки PostgreSQL -->
+
+        <!-- H2 для тестов -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <scope>runtime</scope>
         </dependency>
 
-        <!-- === ЮKassa SDK (версию указываем, т.к. это не часть Spring Boot) === -->
-<!--        <dependency>-->
-<!--            <groupId>com.yookassa</groupId>-->
-<!--            <artifactId>yookassa-sdk-java</artifactId>-->
-<!--            <version>3.2.0</version>-->
-<!--        </dependency>-->
-
-        <!-- === OpenPDF для экспорта чертежа в PDF (из оригинального проекта) === -->
+        <!-- OpenPDF для экспорта -->
         <dependency>
             <groupId>com.github.librepdf</groupId>
             <artifactId>openpdf</artifactId>
             <version>2.0.3</version>
         </dependency>
 
+        <!-- Lombok (одна зависимость) -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <optional>true</optional>
+            <version>${lombok.version}</version>
+            <scope>provided</scope>
         </dependency>
 
-        <!-- === JavaFX (оставляем, если нужен старый интерфейс для тестов) === -->
+        <!-- Тесты -->
         <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-controls</artifactId>
-            <version>${javafx.version}</version>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <scope>provided</scope>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
     <build>
         <plugins>
-            <!-- Главный плагин для сборки Spring Boot приложения -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-            </plugin>
-
-            <!-- Плагин JavaFX (можно удалить, если полностью переходите на веб) -->
-            <plugin>
-                <groupId>org.openjfx</groupId>
-                <artifactId>javafx-maven-plugin</artifactId>
-                <version>0.0.8</version>
                 <configuration>
-                    <mainClass>com.vikroy.Main</mainClass>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
                 </configuration>
             </plugin>
         </plugins>

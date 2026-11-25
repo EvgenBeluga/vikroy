@@ -1,8 +1,13 @@
 package com.vikroy.controller;
 
+import com.vikroy.dto.MeasurementRequest;
+import com.vikroy.dto.PatternResponse;
 import com.vikroy.entity.MeasurementProfile;
 import com.vikroy.entity.User;
+import com.vikroy.repository.MeasurementProfileRepository;
 import com.vikroy.service.PatternService;
+import com.vikroy.service.PdfExportService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -15,28 +20,34 @@ import org.springframework.web.bind.annotation.*;
 public class PatternController {
 
     private final PatternService patternService;
-    private final PdfExportService pdfExportService; // Обертка над оригинальным PdfExporter
+    private final PdfExportService pdfExportService;
+    private final MeasurementProfileRepository measurementRepository;
+
+    public PatternController(PatternService patternService,
+                             PdfExportService pdfExportService,
+                             MeasurementProfileRepository measurementRepository) {
+        this.patternService = patternService;
+        this.pdfExportService = pdfExportService;
+        this.measurementRepository = measurementRepository;
+    }
 
     @PostMapping("/calculate")
     @PreAuthorize("hasAnyRole('USER', 'PREMIUM')")
-    public ResponseEntity<PatternService.PatternData> calculate(
-            @RequestBody MeasurementProfile measurements,
-            @AuthenticationPrincipal User user) {
-
-        measurements.setUser(user);
-        PatternService.PatternData data = patternService.build(measurements);
-        return ResponseEntity.ok(data);
+    public ResponseEntity<PatternResponse> calculate(@Valid @RequestBody MeasurementRequest request,
+                                                     @AuthenticationPrincipal User user) {
+        MeasurementProfile profile = patternService.saveMeasurements(user, request);
+        PatternResponse response = patternService.build(profile);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/pdf")
-    @PreAuthorize("hasRole('PREMIUM')") // Только для подписчиков!
+    @PreAuthorize("hasRole('PREMIUM')")
     public ResponseEntity<byte[]> downloadPdf(@AuthenticationPrincipal User user) {
-        // 1. Получаем последние сохраненные мерки пользователя из БД
-        MeasurementProfile m = measurementRepository.findFirstByUserOrderByidDesc(user)
-                .orElseThrow(() -> new RuntimeException("Мерки не найдены"));
+        MeasurementProfile profile = measurementRepository
+                .findFirstByUserOrderByIdDesc(user)
+                .orElseThrow(() -> new IllegalStateException("Мерки не найдены"));
 
-        // 2. Генерируем PDF (адаптированная логика из оригинального PdfExporter)
-        byte[] pdfBytes = pdfExportService.generatePdf(m);
+        byte[] pdfBytes = pdfExportService.generatePdf(profile);
 
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
