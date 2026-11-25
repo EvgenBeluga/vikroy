@@ -16,7 +16,7 @@ import java.io.ByteArrayOutputStream;
 @Service
 public class PdfExportService {
 
-    private static final float SCALE = 10f; // 1 см = 10 pt
+    private static final float SCALE = 10f;
     private static final float MARGIN = 30f;
 
     private final PatternService patternService;
@@ -40,9 +40,8 @@ public class PdfExportService {
             float offsetX = MARGIN + 100;
             float offsetY = pageH - MARGIN - 100;
 
-            // Рисуем контур спинки (из PatternService)
             if (data.backPath() != null) {
-                drawPath(canvas, data.backPath(), offsetX, offsetY, 0, 0, 0); // чёрный
+                drawPath(canvas, data.backPath(), offsetX, offsetY, 0, 0, 0);
             }
 
             document.close();
