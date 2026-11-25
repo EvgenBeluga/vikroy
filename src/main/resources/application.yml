@@ -32,4 +32,4 @@ server:
 logging:
   level:
     com.vikroy: DEBUG
-    org.springframework.security: INFO
+    org.springframework.security: DEBUG

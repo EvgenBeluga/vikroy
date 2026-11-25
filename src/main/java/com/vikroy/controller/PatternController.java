@@ -32,16 +32,17 @@ public class PatternController {
     }
 
     @PostMapping("/calculate")
-    @PreAuthorize("hasAnyRole('USER', 'PREMIUM')")
+    @PreAuthorize("hasAnyAuthority('ROLE_USER', 'ROLE_PREMIUM')")
     public ResponseEntity<PatternResponse> calculate(@Valid @RequestBody MeasurementRequest request,
                                                      @AuthenticationPrincipal User user) {
+
         MeasurementProfile profile = patternService.saveMeasurements(user, request);
         PatternResponse response = patternService.build(profile);
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/pdf")
-    @PreAuthorize("hasRole('PREMIUM')")
+    @PreAuthorize("hasAuthority('ROLE_PREMIUM')")
     public ResponseEntity<byte[]> downloadPdf(@AuthenticationPrincipal User user) {
         MeasurementProfile profile = measurementRepository
                 .findFirstByUserOrderByIdDesc(user)
