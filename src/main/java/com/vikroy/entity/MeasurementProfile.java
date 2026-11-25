@@ -1,4 +1,4 @@
-package org.example.entity;
+package com.vikroy.entity;
 
 import lombok.*;
 import lombok.experimental.Accessors;

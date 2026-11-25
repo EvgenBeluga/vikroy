@@ -1,8 +1,8 @@
-package org.example.controller;
+package com.vikroy.controller;
 
-import org.example.entity.MeasurementProfile;
-import org.example.entity.User;
-import org.example.service.PatternService;
+import com.vikroy.entity.MeasurementProfile;
+import com.vikroy.entity.User;
+import com.vikroy.service.PatternService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;

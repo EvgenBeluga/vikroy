@@ -1,4 +1,4 @@
-package org.example;
+package com.vikroy;
 
 import javafx.application.Application;
 import javafx.geometry.Insets;

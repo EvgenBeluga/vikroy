@@ -1,8 +1,8 @@
-package org.example.service;
+package com.vikroy.service;
 
-import org.example.Measurements;
-import org.example.PatternPoint;
-import org.example.entity.MeasurementProfile;
+import com.vikroy.Measurements;
+import com.vikroy.PatternPoint;
+import com.vikroy.entity.MeasurementProfile;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;

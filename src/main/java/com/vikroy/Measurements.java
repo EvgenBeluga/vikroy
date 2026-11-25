@@ -1,4 +1,4 @@
-package org.example;
+package com.vikroy;
 
 public class Measurements {
     // 1. Р - рост (справочно)

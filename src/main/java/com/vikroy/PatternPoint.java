@@ -1,4 +1,4 @@
-package org.example;
+package com.vikroy;
 
 public class PatternPoint {
     public double x;
