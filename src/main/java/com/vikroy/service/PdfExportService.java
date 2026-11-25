@@ -40,8 +40,11 @@ public class PdfExportService {
             float offsetX = MARGIN + 100;
             float offsetY = pageH - MARGIN - 100;
 
+            if (data.frontPath() != null) {
+                drawPath(canvas, data.frontPath(), offsetX + 200, offsetY, 0, 0, 255); // синий
+            }
             if (data.backPath() != null) {
-                drawPath(canvas, data.backPath(), offsetX, offsetY, 0, 0, 0);
+                drawPath(canvas, data.backPath(), offsetX, offsetY, 0, 0, 0); // чёрный
             }
 
             document.close();

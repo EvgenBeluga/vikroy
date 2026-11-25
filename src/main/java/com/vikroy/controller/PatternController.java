@@ -7,6 +7,7 @@ import com.vikroy.entity.User;
 import com.vikroy.repository.MeasurementProfileRepository;
 import com.vikroy.service.PatternService;
 import com.vikroy.service.PdfExportService;
+import com.vikroy.service.SvgExportService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -22,13 +23,15 @@ public class PatternController {
     private final PatternService patternService;
     private final PdfExportService pdfExportService;
     private final MeasurementProfileRepository measurementRepository;
+    private final SvgExportService svgExportService;
 
     public PatternController(PatternService patternService,
                              PdfExportService pdfExportService,
-                             MeasurementProfileRepository measurementRepository) {
+                             MeasurementProfileRepository measurementRepository, SvgExportService svgExportService) {
         this.patternService = patternService;
         this.pdfExportService = pdfExportService;
         this.measurementRepository = measurementRepository;
+        this.svgExportService = svgExportService;
     }
 
     @PostMapping("/calculate")
@@ -54,5 +57,18 @@ public class PatternController {
                 .contentType(MediaType.APPLICATION_PDF)
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=vikroy_pattern.pdf")
                 .body(pdfBytes);
+    }
+
+    @GetMapping(value = "/svg", produces = "image/svg+xml")
+    @PreAuthorize("hasAnyAuthority('ROLE_USER', 'ROLE_PREMIUM')")
+    public ResponseEntity<String> downloadSvg(@AuthenticationPrincipal User user) {
+        MeasurementProfile profile = measurementRepository
+                .findFirstByUserOrderByIdDesc(user)
+                .orElseThrow(() -> new IllegalStateException("Мерки не найдены"));
+
+        String svg = svgExportService.generateSvg(profile);
+        return ResponseEntity.ok()
+                .contentType(MediaType.valueOf("image/svg+xml"))
+                .body(svg);
     }
 }
