@@ -47,19 +47,20 @@ public class PatternService {
         PatternPath p = new PatternPath();
         boolean tall = m.getHeight() > 140;
 
-        // --- Базовые точки (в см) ---
+        // --- Вертикаль А-А1-Т-Н ---
         double ax = 0, ay = 0;
-        double a1x = ax;
         double a1y = ay - (tall ? 2.0 : 1.5);
-        double tx = ax;
-        double ty = a1y - m.getDtc();
-        double hx = tx;
-        double hy = ty - (m.getVsd() / 2);
-        double gx = a1x;
-        double gy = a1y - (m.getBust() / 6 - (tall ? 0 : 1));
-        double a2x = ax - (m.getBust() / 16 + 1);
+        double ty = ay - m.getDtc();
+        double tn = m.getVsd() / 2;          // расстояние от талии до низа
+        double hy = ty - tn;
+
+        // --- Горловина ---
+        double a2x = -(m.getBust() / 16 + 1);
         double a2y = ay;
-        double g1x = gx - (m.getBust() / 4);
+
+        // --- Линия груди ---
+        double gy = a1y - (m.getBust() / 6 - (tall ? 0 : 1));
+        double g1x = -(m.getBust() / 4);
         double g1y = gy;
         double g2x = g1x + (m.getBust() / 16);
         double g2y = gy;
@@ -67,47 +68,76 @@ public class PatternService {
         double py = a1y;
         double p1x = px - (tall ? 2.0 : 1.5);
         double p1y = py;
-        double t1x = tx - (m.getWaist() / 4);
+
+        // --- Талия ---
+        double t1x = -(m.getWaist() / 4);
         double t1y = ty;
         double t2x = t1x + 1.0;
         double t2y = ty;
 
-        // --- Контур спинки: начинаем с А2 ---
-        // 1. А2 (горловина)
-        p.moveTo(a2x, a2y);
+        // --- Трусы ---
+        // Б2 (окат спереди): от Т1 вправо 3 см, вниз Вт, но не ниже H
+        double b2x = t1x + 3.0;
+        double b2y = ty - m.getVt();
+        if (b2y < hy + 1) b2y = hy + 1;   // не ниже низа
 
-        // 2. А2 -> А1 (дуга горловины)
-        p.curveTo(
-                a2x + 0.2, a2y - 0.5,   // cp1
-                a1x - 0.5, a1y + 0.2,   // cp2
-                a1x, a1y                // конец
-        );
+        // Б3 (пересечение оката с боковым швом): от Б2 вниз 1.5 см, но не ниже H
+        double b3x = b2x;
+        double b3y = b2y - 1.5;
+        if (b3y < hy + 0.5) b3y = hy + 0.5;
 
-        // 3. А1 -> П1 (плечо, прямая)
-        p.lineTo(p1x, p1y);
+        // Б4 (убавка по спинке): от Б3 вправо 2 см
+        double b4x = b3x + 2.0;
+        double b4y = b3y;
 
-        // 4. П1 -> Г1 (пройма, кривая)
-        p.curveTo(
-                p1x - 0.5, p1y - 1.5,   // cp1
-                g1x + 1.0, g1y + 1.0,   // cp2
-                g1x, g1y                // конец
-        );
+        // Н2 (шаговый шов): от Н влево на 1/2 ластовицы * 1.3
+        double latWidth = m.getHips() / 10;
+        double h2x = 0 - (latWidth / 2) * 1.3;
+        double h2y = hy;
 
-        // 5. Г1 -> Т1 (бок, прямая)
-        p.lineTo(t1x, t1y);
+        // Н1 (ластовица): от Н вверх 6-7 см, влево на 1/5 ББ1
+        double h1y = hy + (tall ? 7 : 6);
+        double h1x = 0 - (m.getHips() / 20);
 
-        // 6. Т1 -> Т2 -> Т (талия, прямые)
-        p.lineTo(t2x, t2y);
-        p.lineTo(tx, ty);
+        // Н3 (перпендикуляр от середины Н2Б4 вниз 1 см)
+        double h3x = (h2x + b4x) / 2;
+        double h3y = (h2y + b4y) / 2 - 1.0;
 
-        // 7. Т -> Н (низ, прямая)
-        p.lineTo(hx, hy);
+        // --- Контур (ломаная, для диагностики) ---
+        p.moveTo(a2x, a2y);        // А2
+        p.lineTo(0, a1y);          // А1
+        p.lineTo(p1x, p1y);        // П1
+        p.lineTo(g1x, g1y);        // Г1
+        p.lineTo(t1x, t1y);        // Т1
+        p.lineTo(t2x, t2y);        // Т2
+        p.lineTo(0, ty);           // Т
+        p.lineTo(b4x, b4y);        // Б4
+        p.lineTo(h3x, h3y);        // Н3
+        p.lineTo(h2x, h2y);        // Н2
+        p.lineTo(0, hy);           // Н
+        p.lineTo(h1x, h1y);        // Н1
+        p.lineTo(b2x, b2y);        // Б2
+        p.lineTo(t1x, t1y);        // обратно к Т1
+        p.lineTo(0, ay);           // А
+        p.lineTo(a2x, a2y);        // А2
 
-        // 8. Н -> А (центр спинки, прямая)
-        p.lineTo(ax, ay);
-
-        // 9. А -> А2 (замыкание по верху, прямая)
-        p.lineTo(a2x, a2y);
+        // --- Отладка ---
+        System.out.println("=== BACK POINTS (FIXED) ===");
+        System.out.printf("A: (%.2f, %.2f)%n", ax, ay);
+        System.out.printf("A1: (%.2f, %.2f)%n", 0.0, a1y);
+        System.out.printf("A2: (%.2f, %.2f)%n", a2x, a2y);
+        System.out.printf("P1: (%.2f, %.2f)%n", p1x, p1y);
+        System.out.printf("G1: (%.2f, %.2f)%n", g1x, g1y);
+        System.out.printf("T1: (%.2f, %.2f)%n", t1x, t1y);
+        System.out.printf("T2: (%.2f, %.2f)%n", t2x, t2y);
+        System.out.printf("T:  (%.2f, %.2f)%n", 0.0, ty);
+        System.out.printf("B2: (%.2f, %.2f)%n", b2x, b2y);
+        System.out.printf("B3: (%.2f, %.2f)%n", b3x, b3y);
+        System.out.printf("B4: (%.2f, %.2f)%n", b4x, b4y);
+        System.out.printf("H:  (%.2f, %.2f)%n", 0.0, hy);
+        System.out.printf("H1: (%.2f, %.2f)%n", h1x, h1y);
+        System.out.printf("H2: (%.2f, %.2f)%n", h2x, h2y);
+        System.out.printf("H3: (%.2f, %.2f)%n", h3x, h3y);
 
         return p;
     }
