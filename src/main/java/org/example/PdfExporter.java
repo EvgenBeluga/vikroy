@@ -9,6 +9,7 @@ import com.lowagie.text.pdf.PdfWriter;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.List;
 
 public class PdfExporter {
 
@@ -23,41 +24,6 @@ public class PdfExporter {
         float margin = 30;
         float pageWidth = PageSize.A4.getWidth();
         float pageHeight = PageSize.A4.getHeight();
-        float usableWidth = pageWidth - 2 * margin;
-        float usableHeight = pageHeight - 2 * margin;
-
-        // === РАСЧЁТЫ В СМ ===
-        double stretch = 0.88;
-        double chestW = (m.bust / 4.0) * stretch;
-        double waistW = (m.waist / 4.0) * stretch;
-        double hipW = (m.hips / 4.0) * stretch;
-        double bodyH = m.torso;
-        double seatH = m.seatHeight;
-        double totalH = bodyH + seatH;
-        double neckD = Math.min((m.neckCirc / 6.0) * stretch, 7.0);
-        double backNeckD = 2.0;
-        double armholeD = m.armholeDepth;
-        double shoulderL = m.shoulderLength;
-
-        // Перевод в пункты
-        float cw = (float) chestW * cm;
-        float ww = (float) waistW * cm;
-        float hw = (float) hipW * cm;
-        float bh = (float) bodyH * cm;
-        float sh = (float) seatH * cm;
-        float th = (float) totalH * cm;
-        float nd = (float) neckD * cm;
-        float bnd = (float) backNeckD * cm;
-        float ad = (float) armholeD * cm;
-        float sl = (float) shoulderL * cm;
-
-        // Масштаб, чтобы вписать в лист (80% ширины/высоты)
-        float maxW = Math.max(cw, Math.max(ww, hw));
-        float maxH = th;
-        float scaleX = (usableWidth * 0.8f) / maxW;
-        float scaleY = (usableHeight * 0.8f) / maxH;
-        float scale = Math.min(scaleX, scaleY);
-        if (scale > 1.0f) scale = 1.0f;
 
         try {
             Document document = new Document(PageSize.A4, margin, margin, margin, margin);
@@ -65,14 +31,19 @@ public class PdfExporter {
             document.open();
             PdfContentByte canvas = writer.getDirectContent();
 
-            // === ПЕРЕД (справа) ===
-            float centerX = margin + usableWidth * 0.7f;
-            float topY = margin + usableHeight * 0.85f;
-            drawFront(canvas, centerX, topY, cw * scale, ww * scale, hw * scale, bh * scale, sh * scale, nd * scale, ad * scale, sl * scale);
+            PatternBuilder builder = new PatternBuilder();
+            PatternData data = builder.build(m);
 
-            // === СПИНКА (слева) ===
-            float backCenterX = centerX - maxW * scale - 30;
-            drawBack(canvas, backCenterX, topY, cw * scale, ww * scale, hw * scale, bh * scale, sh * scale, bnd * scale, ad * scale, sl * scale);
+            // === ПОЗИЦИОНИРОВАНИЕ ===
+            float centerFrontX = margin + 200;
+            float centerBackX = margin + 50;
+            float topY = pageHeight - margin - 100;
+
+            // === РИСУЕМ ПЕРЕД ===
+            drawPart(canvas, data.frontPoints, centerFrontX, topY, 0, 100, 255);
+
+            // === РИСУЕМ СПИНКУ ===
+            drawPart(canvas, data.backPoints, centerBackX, topY, 0, 0, 0);
 
             // === КОНТРОЛЬНЫЙ КВАДРАТ ===
             drawControlSquare(canvas, margin + 10, margin + 10, cm);
@@ -84,88 +55,25 @@ public class PdfExporter {
         }
     }
 
-    private static void drawFront(PdfContentByte canvas, float centerX, float topY,
-                                  float cw, float ww, float hw, float bh, float sh,
-                                  float nd, float ad, float sl) {
+    private static void drawPart(PdfContentByte canvas, List<PatternPoint> points,
+                                 float offsetX, float offsetY,
+                                 int r, int g, int b) {
+        if (points == null || points.size() < 2) return;
+
+        canvas.saveState();
         canvas.setLineWidth(1.5f);
-        canvas.setRGBColorStroke(0, 0, 255); // Синий
+        canvas.setRGBColorStroke(r, g, b);
 
-        // 1. Плечо (от центра влево)
-        canvas.moveTo(centerX, topY);
-        canvas.lineTo(centerX - sl, topY);
+        // Начинаем с первой точки
+        canvas.moveTo(offsetX + (float) points.get(0).x, offsetY + (float) points.get(0).y);
 
-        // 2. Горловина (плавная дуга от плеча к центру)
-        canvas.curveTo(
-                centerX - sl + nd / 2, topY - nd / 2,
-                centerX - nd / 1.5f, topY - nd * 0.9f,
-                centerX, topY - nd
-        );
-
-        // 3. Пройма (от конца плеча вниз к талии)
-        float armholeStartX = centerX - cw / 2;
-        canvas.moveTo(centerX - sl, topY);
-        canvas.curveTo(
-                armholeStartX - 5, topY - ad / 2,
-                centerX - ww / 2, topY - ad * 0.75f,
-                centerX - ww / 2, topY - ad
-        );
-
-        // 4. Боковой шов (от талии к бедру)
-        canvas.lineTo(centerX - hw / 2, topY - bh + sh * 0.3f);
-
-        // 5. Ластовица (плавная кривая к центру)
-        canvas.curveTo(
-                centerX - hw / 4, topY - bh + sh * 0.1f,
-                centerX - hw / 6, topY - bh,
-                centerX, topY - bh
-        );
-
-        // 6. Осевая линия (замыкаем)
-        canvas.lineTo(centerX, topY);
+        // Соединяем линиями (можно заменить на curveTo для плавности)
+        for (int i = 1; i < points.size(); i++) {
+            canvas.lineTo(offsetX + (float) points.get(i).x, offsetY + (float) points.get(i).y);
+        }
 
         canvas.stroke();
-    }
-
-    private static void drawBack(PdfContentByte canvas, float centerX, float topY,
-                                 float cw, float ww, float hw, float bh, float sh,
-                                 float bnd, float ad, float sl) {
-        canvas.setLineWidth(1.5f);
-        canvas.setRGBColorStroke(0, 0, 0); // Чёрный
-
-        // 1. Плечо
-        canvas.moveTo(centerX, topY);
-        canvas.lineTo(centerX - sl, topY);
-
-        // 2. Горловина спинки (мелкая)
-        canvas.curveTo(
-                centerX - sl + bnd / 2, topY - bnd / 2,
-                centerX - bnd / 1.5f, topY - bnd * 0.9f,
-                centerX, topY - bnd
-        );
-
-        // 3. Пройма спинки
-        float armholeStartX = centerX - cw / 2;
-        canvas.moveTo(centerX - sl, topY);
-        canvas.curveTo(
-                armholeStartX - 5, topY - ad / 2,
-                centerX - ww / 2, topY - ad * 0.75f,
-                centerX - ww / 2, topY - ad
-        );
-
-        // 4. Боковой шов
-        canvas.lineTo(centerX - hw / 2, topY - bh + sh * 0.3f);
-
-        // 5. Ластовица
-        canvas.curveTo(
-                centerX - hw / 4, topY - bh + sh * 0.1f,
-                centerX - hw / 6, topY - bh,
-                centerX, topY - bh
-        );
-
-        // 6. Осевая
-        canvas.lineTo(centerX, topY);
-
-        canvas.stroke();
+        canvas.restoreState();
     }
 
     private static void drawControlSquare(PdfContentByte canvas, float x, float y, float cm) {

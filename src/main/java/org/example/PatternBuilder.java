@@ -5,138 +5,177 @@ import java.util.List;
 
 public class PatternBuilder {
 
-    private final double canvasScale = 6.0;  // для экрана
-    private final double pdfScale = 28.35;   // для PDF (1 см = 28.35 pt)
+    private final double cm = 28.35; // 1 см = 28.35 pt (для PDF)
 
-    public PatternData buildForCanvas(Measurements m) {
+    // === ПОСТРОЕНИЕ ПО МЕТОДИКЕ ===
+    public PatternData build(Measurements m) {
         PatternData data = new PatternData();
-        data.frontPoints = calculateHalfFront(m, canvasScale);
-        data.backPoints = calculateHalfBack(m, canvasScale);
-        data.sleevePoints = calculateSleeve(m, canvasScale);
-        data.frontSkirtPoints = calculateSkirt(m, canvasScale, true);
-        data.backSkirtPoints = calculateSkirt(m, canvasScale, false);
+        data.frontPoints = buildFront(m);
+        data.backPoints = buildBack(m);
+        data.sleevePoints = buildSleeve(m);
+        data.frontSkirtPoints = buildSkirt(m, true);
+        data.backSkirtPoints = buildSkirt(m, false);
         return data;
     }
 
-    public PatternData buildForPDF(Measurements m) {
-        PatternData data = new PatternData();
-        data.frontPoints = calculateHalfFront(m, pdfScale);
-        data.backPoints = calculateHalfBack(m, pdfScale);
-        data.sleevePoints = calculateSleeve(m, pdfScale);
-        data.frontSkirtPoints = calculateSkirt(m, pdfScale, true);
-        data.backSkirtPoints = calculateSkirt(m, pdfScale, false);
-        return data;
-    }
-
-    // === ЛИФ: ПЕРЕД ===
-    private List<PatternPoint> calculateHalfFront(Measurements m, double s) {
+    // === ПОСТРОЕНИЕ СПИНКИ ===
+    private List<PatternPoint> buildBack(Measurements m) {
         List<PatternPoint> points = new ArrayList<>();
-        double centerX = 400;
-        double topY = 200;
+        double s = cm;
+        boolean tall = m.height > 140;
 
-        double chestW = (m.bust / 4.0) * m.stretchFactor * s;
-        double waistW = (m.waist / 4.0) * m.stretchFactor * s;
-        double hipW = (m.hips / 4.0) * m.stretchFactor * s;
-        double bodyH = m.torso * s;
-        double seatH = m.seatHeight * s;
-        double armholeD = m.armholeDepth * s;
-        double shoulderL = m.shoulderLength * s;
-        double neckD = Math.min((m.neckCirc / 6.0) * m.stretchFactor, 7.0) * s;
+        // 1. Точка А (верх спинки)
+        double ax = 0;
+        double ay = 0;
+        points.add(new PatternPoint(ax, ay));
 
-        // 1. Плечо
-        points.add(new PatternPoint(centerX, topY));
-        points.add(new PatternPoint(centerX - shoulderL, topY));
+        // 2. Точка А1 (линия плеча)
+        double a1x = ax;
+        double a1y = ay - (tall ? 2.0 : 1.5) * s;
+        points.add(new PatternPoint(a1x, a1y));
 
-        // 2. Горловина (плавная дуга из 3 точек)
-        points.add(new PatternPoint(centerX - shoulderL + neckD / 2, topY - neckD / 2));
-        points.add(new PatternPoint(centerX - neckD / 1.5, topY - neckD * 0.9));
-        points.add(new PatternPoint(centerX, topY - neckD));
+        // 3. Точка Т (талия)
+        double tx = ax;
+        double ty = a1y - m.dtc * s;
+        points.add(new PatternPoint(tx, ty));
 
-        // 3. Пройма (плавная дуга)
-        double armholeStartX = centerX - chestW / 2;
-        points.add(new PatternPoint(armholeStartX - 10, topY - armholeD / 2));
-        points.add(new PatternPoint(centerX - waistW / 2, topY - armholeD * 0.75));
-        points.add(new PatternPoint(centerX - waistW / 2, topY - armholeD));
+        // 4. Точка Н (низ)
+        double hx = tx;
+        double hy = ty - (m.vsd / 2) * s;
+        points.add(new PatternPoint(hx, hy));
 
-        // 4. Боковой шов
-        points.add(new PatternPoint(centerX - hipW / 2, topY - bodyH + seatH * 0.3));
+        // 5. Точка Г (линия груди)
+        double gx = a1x;
+        double gy = a1y - (m.bust / 6 - (tall ? 0 : 1)) * s;
+        points.add(new PatternPoint(gx, gy));
 
-        // 5. Ластовица (плавная кривая)
-        points.add(new PatternPoint(centerX - hipW / 4, topY - bodyH + seatH * 0.1));
-        points.add(new PatternPoint(centerX, topY - bodyH));
+        // 6. Точка А2 (горловина)
+        double a2x = ax - (m.bust / 16 + 1) * s;
+        double a2y = ay;
+        points.add(new PatternPoint(a2x, a2y));
 
-        // 6. Осевая
-        points.add(new PatternPoint(centerX, topY));
+        // 7. Точка Г1 (пройма)
+        double g1x = gx - (m.bust / 4) * s;
+        double g1y = gy;
+        points.add(new PatternPoint(g1x, g1y));
+
+        // 8. Точка Г2
+        double g2x = g1x + (m.bust / 16) * s;
+        double g2y = gy;
+        points.add(new PatternPoint(g2x, g2y));
+
+        // 9. Точка П (вершина проймы)
+        double px = g2x;
+        double py = a1y;
+        points.add(new PatternPoint(px, py));
+
+        // 10. Точка П1 (конец плеча)
+        double p1x = px - (tall ? 2.0 : 1.5) * s;
+        double p1y = py;
+        points.add(new PatternPoint(p1x, p1y));
+
+        // 11. Точка Т1 (боковой шов)
+        double t1x = tx - (m.waist / 4) * s;
+        double t1y = ty;
+        points.add(new PatternPoint(t1x, t1y));
+
+        // 12. Точка Т2 (смещение)
+        double t2x = t1x + 1.0 * s;
+        double t2y = ty;
+        points.add(new PatternPoint(t2x, t2y));
+
+        // 13. Вытачка на спинке (Т3, Т4)
+        double t3y = ty + (tall ? 2.0 : 1.5) * s;
+        double t4y = ty - (tall ? 2.5 : 2.0) * s;
+        points.add(new PatternPoint(t2x, t3y));
+        points.add(new PatternPoint(t2x, t4y));
 
         return points;
     }
 
-    // === ЛИФ: СПИНКА ===
-    private List<PatternPoint> calculateHalfBack(Measurements m, double s) {
+    // === ПОСТРОЕНИЕ ПЕРЕДА ===
+    private List<PatternPoint> buildFront(Measurements m) {
         List<PatternPoint> points = new ArrayList<>();
-        double centerX = 400;
-        double topY = 200;
+        double s = cm;
+        boolean tall = m.height > 140;
 
-        double chestW = (m.bust / 4.0) * m.stretchFactor * s;
-        double waistW = (m.waist / 4.0) * m.stretchFactor * s;
-        double hipW = (m.hips / 4.0) * m.stretchFactor * s;
-        double bodyH = m.torso * s;
-        double seatH = m.seatHeight * s;
-        double armholeD = m.armholeDepth * s;
-        double shoulderL = m.shoulderLength * s;
-        double backNeckD = 2.0 * s;
+        // 1. Точка А2 (горловина спинки) — базовая для переда
+        double a2x = -(m.bust / 16 + 1) * s;
+        double a2y = 0;
+        points.add(new PatternPoint(a2x, a2y));
 
-        points.add(new PatternPoint(centerX, topY));
-        points.add(new PatternPoint(centerX - shoulderL, topY));
-        points.add(new PatternPoint(centerX - shoulderL + backNeckD / 2, topY - backNeckD / 2));
-        points.add(new PatternPoint(centerX, topY - backNeckD));
+        // 2. Точка А3 (верх плеча спереди)
+        double a3x = a2x;
+        double a3y = a2y + (tall ? 1.0 : 0.5) * s;
+        points.add(new PatternPoint(a3x, a3y));
 
-        double armholeStartX = centerX - chestW / 2;
-        points.add(new PatternPoint(armholeStartX - 10, topY - armholeD / 2));
-        points.add(new PatternPoint(centerX - waistW / 2, topY - armholeD * 0.75));
-        points.add(new PatternPoint(centerX - waistW / 2, topY - armholeD));
+        // 3. Точка А1п (линия плеча переда)
+        double a1py = a3y - (tall ? 1.0 : 0.5) * s;
+        points.add(new PatternPoint(a3x, a1py));
 
-        points.add(new PatternPoint(centerX - hipW / 2, topY - bodyH + seatH * 0.3));
-        points.add(new PatternPoint(centerX - hipW / 4, topY - bodyH + seatH * 0.1));
-        points.add(new PatternPoint(centerX, topY - bodyH));
+        // 4. Точка А4 (низ горловины спереди)
+        double a4x = a2x;
+        double a4y = a1py - (tall ? 2.5 : 2.0) * s;
+        points.add(new PatternPoint(a4x, a4y));
 
-        points.add(new PatternPoint(centerX, topY));
+        // 5. Точка П2 (конец плеча переда)
+        double p2x = a3x - (m.bust / 16 + 1) * s;
+        double p2y = a3y;
+        points.add(new PatternPoint(p2x, p2y));
+
+        // 6. Точка Г1 (пройма)
+        double g1x = -(m.bust / 4) * s;
+        double g1y = a1py - (m.bust / 6) * s;
+        points.add(new PatternPoint(g1x, g1y));
+
+        // 7. Точка Т1 (боковой шов)
+        double t1x = -(m.waist / 4) * s;
+        double t1y = -m.dtc * s;
+        points.add(new PatternPoint(t1x, t1y));
+
+        // 8. Точка Т2 (смещение)
+        double t2x = t1x + 1.0 * s;
+        double t2y = t1y;
+        points.add(new PatternPoint(t2x, t2y));
 
         return points;
     }
 
     // === РУКАВ ===
-    private List<PatternPoint> calculateSleeve(Measurements m, double s) {
+    private List<PatternPoint> buildSleeve(Measurements m) {
         List<PatternPoint> points = new ArrayList<>();
-        double bicepW = (m.upperArmCirc / 2.0) * m.stretchFactor * s;
-        double wristW = (m.wristCirc / 2.0) * m.stretchFactor * s;
-        double sleeveH = m.sleeveLength * s;
-        double capH = (m.armholeDepth * 0.8) * s;
+        double s = cm;
 
-        double startX = 800;
-        double startY = 200;
+        double sleeveLen = m.sleeveLength * s;
+        double bicepW = (m.upperArmCirc / 2) * m.stretchFactor * s;
+        double wristW = (m.wristCirc / 2) * m.stretchFactor * s;
 
-        points.add(new PatternPoint(startX - bicepW / 2, startY + capH));
-        points.add(new PatternPoint(startX, startY));
-        points.add(new PatternPoint(startX + bicepW / 2, startY + capH));
-        points.add(new PatternPoint(startX + wristW / 2, startY + sleeveH));
-        points.add(new PatternPoint(startX - wristW / 2, startY + sleeveH));
-        points.add(new PatternPoint(startX - bicepW / 2, startY + capH));
+        double startX = 0;
+        double startY = 0;
+
+        points.add(new PatternPoint(startX - bicepW / 2, startY));
+        points.add(new PatternPoint(startX, startY - sleeveLen * 0.3));
+        points.add(new PatternPoint(startX + bicepW / 2, startY));
+        points.add(new PatternPoint(startX + wristW / 2, startY + sleeveLen));
+        points.add(new PatternPoint(startX - wristW / 2, startY + sleeveLen));
+        points.add(new PatternPoint(startX - bicepW / 2, startY));
 
         return points;
     }
 
     // === ЮБКА ===
-    private List<PatternPoint> calculateSkirt(Measurements m, double s, boolean isFront) {
+    private List<PatternPoint> buildSkirt(Measurements m, boolean isFront) {
         List<PatternPoint> points = new ArrayList<>();
-        double waist = m.waist * m.stretchFactor;
+        double s = cm;
+
         double length = isFront ? m.frontSkirtLength : m.backSkirtLength;
+        double waist = m.waist * m.stretchFactor;
 
         double rWaist = (waist / (2 * Math.PI)) * s;
         double rBottom = rWaist + (length * s);
 
-        double centerX = isFront ? 400 : 800;
-        double centerY = 600;
+        double centerX = 0;
+        double centerY = 0;
 
         points.add(new PatternPoint(centerX, centerY));
         points.add(new PatternPoint(centerX + rWaist, centerY));

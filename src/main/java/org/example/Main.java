@@ -74,7 +74,8 @@ public class Main extends Application {
         generateButton.setOnAction(e -> {
             try {
                 Measurements m = collectMeasurements();
-                PatternData data = builder.buildForCanvas(m);
+                // Если ошибка "cannot find symbol" останется, проверьте сигнатуру buildForCanvas в PatternBuilder
+                PatternData data = builder.build(m);
                 drawAll(gc, data);
             } catch (NumberFormatException ex) {
                 System.out.println("Ошибка: введите числа во все поля!");
@@ -92,9 +93,9 @@ public class Main extends Application {
 
         BorderPane root = new BorderPane();
         root.setLeft(new VBox(inputGrid));
-        root.setCenter(scrollPane); // прокручиваемая область
+        root.setCenter(scrollPane);
 
-        Scene scene = new Scene(root, 1000, 800); // уменьшили окно
+        Scene scene = new Scene(root, 1000, 800);
         primaryStage.setTitle("Конструктор купальников (Lana-style)");
         primaryStage.setScene(scene);
         primaryStage.show();
@@ -120,21 +121,29 @@ public class Main extends Application {
     }
 
     private Measurements collectMeasurements() {
+        // Рост (height) - справочно, берем константу для типичного роста гимнастки
+        double height = 144.0;
+        // Дуга (duga) - часто рассчитывается как Дтп - Вс, но если нет поля, берем примерное значение
+        double duga = 120.0;
+
         return new Measurements(
-                Double.parseDouble(bustField.getText()),
-                Double.parseDouble(waistField.getText()),
-                Double.parseDouble(hipsField.getText()),
-                Double.parseDouble(torsoField.getText()),
-                Double.parseDouble(seatHeightField.getText()),
-                Double.parseDouble(backWidthField.getText()),
-                Double.parseDouble(armholeDepthField.getText()),
-                Double.parseDouble(shoulderLengthField.getText()),
-                Double.parseDouble(neckCircField.getText()),
-                Double.parseDouble(sleeveLengthField.getText()),
-                Double.parseDouble(upperArmCircField.getText()),
-                Double.parseDouble(wristCircField.getText()),
-                Double.parseDouble(frontSkirtLengthField.getText()),
-                Double.parseDouble(backSkirtLengthField.getText())
+                height, // 1. height
+                duga,   // 2. duga
+                Double.parseDouble(bustField.getText()), // 3. bust
+                Double.parseDouble(waistField.getText()), // 4. waist
+                Double.parseDouble(hipsField.getText()), // 5. hips
+                Double.parseDouble(neckCircField.getText()), // 6. neckCirc
+                Double.parseDouble(torsoField.getText()), // 7. dtc
+                Double.parseDouble(seatHeightField.getText()), // 8. vsd
+                Double.parseDouble(sleeveLengthField.getText()), // 9. sleeveLength
+                Double.parseDouble(upperArmCircField.getText()), // 10. upperArmCirc
+                Double.parseDouble(wristCircField.getText()), // 11. wristCirc
+                Double.parseDouble(seatHeightField.getText()), // 12. vt (временно дублируем Вс, нужно уточнить логику)
+                Double.parseDouble(frontSkirtLengthField.getText()), // 13. frontSkirtLength
+                Double.parseDouble(backSkirtLengthField.getText()), // 14. backSkirtLength
+                Double.parseDouble(torsoField.getText()) + Double.parseDouble(backSkirtLengthField.getText()), // 15. dtp (примерный расчет)
+                Double.parseDouble(wristCircField.getText()) * 1.2, // 16. ankleCirc (примерный расчет от запястья)
+                Double.parseDouble(seatHeightField.getText()) // 17. seatHeight
         );
     }
 
