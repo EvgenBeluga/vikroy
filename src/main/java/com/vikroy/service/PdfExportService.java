@@ -7,17 +7,16 @@ import com.lowagie.text.pdf.PdfContentByte;
 import com.lowagie.text.pdf.PdfWriter;
 import com.vikroy.dto.PatternResponse;
 import com.vikroy.entity.MeasurementProfile;
-import com.vikroy.model.PatternPoint;
+import com.vikroy.model.PathCommand;
+import com.vikroy.model.PatternPath;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
-import java.util.List;
 
 @Service
 public class PdfExportService {
 
-    /** 1 см = 28.35 pt */
-    private static final float CM = 28.35f;
+    private static final float PREVIEW_SCALE = 0.4f;
     private static final float MARGIN = 30f;
 
     private final PatternService patternService;
@@ -26,7 +25,6 @@ public class PdfExportService {
         this.patternService = patternService;
     }
 
-    /** Генерирует PDF с выкройкой и возвращает байты (для HTTP-ответа) */
     public byte[] generatePdf(MeasurementProfile profile) {
         PatternResponse data = patternService.build(profile);
 
@@ -36,26 +34,27 @@ public class PdfExportService {
         try {
             PdfWriter writer = PdfWriter.getInstance(document, out);
             document.open();
-
             PdfContentByte canvas = writer.getDirectContent();
 
-            float pageHeight = PageSize.A4.getHeight();
-            float centerFrontX = MARGIN + 200;
-            float centerBackX = MARGIN + 50;
-            float topY = pageHeight - MARGIN - 100;
+            float pageH = PageSize.A4.getHeight();
+            float pageW = PageSize.A4.getWidth();
 
-            // Перед (синий)
-            drawPart(canvas, data.frontPoints(), centerFrontX, topY, 0, 100, 255);
-            // Спинка (чёрный)
-            drawPart(canvas, data.backPoints(), centerBackX, topY, 0, 0, 0);
-            // Рукав (зелёный)
-            drawPart(canvas, data.sleevePoints(), MARGIN + 50, topY - 400, 0, 128, 0);
-            // Юбки (фиолетовый)
-            drawPart(canvas, data.frontSkirtPoints(), MARGIN + 200, topY - 400, 128, 0, 128);
-            drawPart(canvas, data.backSkirtPoints(), MARGIN + 350, topY - 400, 128, 0, 128);
+            drawGrid(canvas);
 
-            // Контрольный квадрат 10×10 см
-            drawControlSquare(canvas, MARGIN + 10, MARGIN + 10);
+            if (data.backPath() != null) {
+                // Вычисляем bounding box по всем точкам пути
+                double[] bbox = computeBBox(data.backPath());
+                double minX = bbox[0], minY = bbox[1], maxX = bbox[2], maxY = bbox[3];
+
+                // Масштаб: переводим см в pt с учётом PREVIEW_SCALE
+                float scale = (float) (PatternService.CM * PREVIEW_SCALE);
+
+                // Сдвиг: левый край детали -> MARGIN, верхний край -> pageH - MARGIN
+                float offsetX = MARGIN - (float) minX * scale;
+                float offsetY = pageH - MARGIN - (float) maxY * scale;
+
+                drawPath(canvas, data.backPath(), offsetX, offsetY, scale, 0, 0, 0);
+            }
 
             document.close();
         } catch (DocumentException e) {
@@ -65,48 +64,69 @@ public class PdfExportService {
         return out.toByteArray();
     }
 
-    private void drawPart(PdfContentByte canvas, List<PatternPoint> points,
-                          float offsetX, float offsetY, int r, int g, int b) {
-        if (points == null || points.size() < 2) return;
+    private double[] computeBBox(PatternPath path) {
+        double minX = Double.MAX_VALUE, minY = Double.MAX_VALUE;
+        double maxX = -Double.MAX_VALUE, maxY = -Double.MAX_VALUE;
 
+        for (PathCommand cmd : path.getCommands()) {
+            // Для CURVE_TO учитываем все три точки, для остальных — одну
+            double[] xs, ys;
+            if (cmd.getType() == PathCommand.Type.CURVE_TO) {
+                xs = new double[]{cmd.getX1(), cmd.getX2(), cmd.getX3()};
+                ys = new double[]{cmd.getY1(), cmd.getY2(), cmd.getY3()};
+            } else {
+                xs = new double[]{cmd.getX1()};
+                ys = new double[]{cmd.getY1()};
+            }
+            for (double x : xs) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); }
+            for (double y : ys) { minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
+        }
+        return new double[]{minX, minY, maxX, maxY};
+    }
+
+    private void drawPath(PdfContentByte canvas, PatternPath path,
+                          float offsetX, float offsetY, float scale,
+                          int r, int g, int b) {
         canvas.saveState();
-        canvas.setLineWidth(1.5f);
+        canvas.setLineWidth(1.2f);
         canvas.setRGBColorStroke(r, g, b);
 
-        canvas.moveTo(offsetX + (float) points.get(0).getX(),
-                offsetY + (float) points.get(0).getY());
-        for (int i = 1; i < points.size(); i++) {
-            canvas.lineTo(offsetX + (float) points.get(i).getX(),
-                    offsetY + (float) points.get(i).getY());
+        for (PathCommand cmd : path.getCommands()) {
+            switch (cmd.getType()) {
+                case MOVE_TO -> canvas.moveTo(offsetX + (float) cmd.getX1() * scale,
+                        offsetY + (float) cmd.getY1() * scale);
+                case LINE_TO -> canvas.lineTo(offsetX + (float) cmd.getX1() * scale,
+                        offsetY + (float) cmd.getY1() * scale);
+                case CURVE_TO -> canvas.curveTo(
+                        offsetX + (float) cmd.getX1() * scale,
+                        offsetY + (float) cmd.getY1() * scale,
+                        offsetX + (float) cmd.getX2() * scale,
+                        offsetY + (float) cmd.getY2() * scale,
+                        offsetX + (float) cmd.getX3() * scale,
+                        offsetY + (float) cmd.getY3() * scale
+                );
+            }
         }
         canvas.stroke();
         canvas.restoreState();
     }
 
-    private void drawControlSquare(PdfContentByte canvas, float x, float y) {
+    private void drawGrid(PdfContentByte canvas) {
         canvas.saveState();
-        canvas.setLineWidth(1f);
-        canvas.setRGBColorStroke(0, 0, 0);
-
-        float sqSize = 10 * CM;
-        canvas.rectangle(x, y, sqSize, sqSize);
+        canvas.setLineWidth(0.2f);
+        canvas.setRGBColorStroke(220, 220, 220);
+        float pageW = PageSize.A4.getWidth();
+        float pageH = PageSize.A4.getHeight();
+        float step = 28.35f * PREVIEW_SCALE;
+        for (float x = MARGIN; x < pageW - MARGIN; x += step) {
+            canvas.moveTo(x, MARGIN);
+            canvas.lineTo(x, pageH - MARGIN);
+        }
+        for (float y = MARGIN; y < pageH - MARGIN; y += step) {
+            canvas.moveTo(MARGIN, y);
+            canvas.lineTo(pageW - MARGIN, y);
+        }
         canvas.stroke();
-
-        canvas.beginText();
-        canvas.setFontAndSize(
-                com.lowagie.text.FontFactory
-                        .getFont(com.lowagie.text.FontFactory.HELVETICA, 10)
-                        .getBaseFont(),
-                10
-        );
-        canvas.showTextAligned(
-                com.lowagie.text.Element.ALIGN_LEFT,
-                "10 см",
-                x,
-                y + sqSize + 5,
-                0
-        );
-        canvas.endText();
         canvas.restoreState();
     }
 }
