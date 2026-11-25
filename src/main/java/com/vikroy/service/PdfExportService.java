@@ -16,7 +16,7 @@ import java.io.ByteArrayOutputStream;
 @Service
 public class PdfExportService {
 
-    private static final float SCALE = 10f; // 1 см = 10 pt (для диагностики)
+    private static final float SCALE = 10f; // 1 см = 10 pt
     private static final float MARGIN = 30f;
 
     private final PatternService patternService;
@@ -35,11 +35,14 @@ public class PdfExportService {
             PdfWriter writer = PdfWriter.getInstance(document, out);
             document.open();
             PdfContentByte canvas = writer.getDirectContent();
-
             float pageH = PageSize.A4.getHeight();
 
+            float offsetX = MARGIN + 100;
+            float offsetY = pageH - MARGIN - 100;
+
+            // Рисуем контур спинки (из PatternService)
             if (data.backPath() != null) {
-                drawPath(canvas, data.backPath(), MARGIN + 20, pageH - MARGIN - 20, 0, 0, 0);
+                drawPath(canvas, data.backPath(), offsetX, offsetY, 0, 0, 0); // чёрный
             }
 
             document.close();
@@ -53,7 +56,7 @@ public class PdfExportService {
     private void drawPath(PdfContentByte canvas, PatternPath path,
                           float offsetX, float offsetY, int r, int g, int b) {
         canvas.saveState();
-        canvas.setLineWidth(1.0f);
+        canvas.setLineWidth(1.2f);
         canvas.setRGBColorStroke(r, g, b);
 
         for (PathCommand cmd : path.getCommands()) {
