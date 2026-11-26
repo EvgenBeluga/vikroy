@@ -16,7 +16,7 @@ import java.io.ByteArrayOutputStream;
 @Service
 public class PdfExportService {
 
-    private static final float SCALE = 10f;
+    private static final float CM = 28.35f; // 1 см = 28.35 pt
     private static final float MARGIN = 30f;
 
     private final PatternService patternService;
@@ -37,14 +37,21 @@ public class PdfExportService {
             PdfContentByte canvas = writer.getDirectContent();
             float pageH = PageSize.A4.getHeight();
 
-            float offsetX = MARGIN + 100;
-            float offsetY = pageH - MARGIN - 100;
+            // --- Контрольный квадрат 10x10 см ---
+            drawControlSquare(canvas, MARGIN, MARGIN, CM);
 
+            // --- Перед (синий) ---
+            float offsetXFront = MARGIN + 200;
+            float offsetYFront = pageH - MARGIN - 100;
             if (data.frontPath() != null) {
-                drawPath(canvas, data.frontPath(), offsetX + 200, offsetY, 0, 0, 255); // синий
+                drawPath(canvas, data.frontPath(), offsetXFront, offsetYFront, 0, 0, 255);
             }
+
+            // --- Спинка (чёрный) ---
+            float offsetXBack = MARGIN + 50;
+            float offsetYBack = pageH - MARGIN - 100;
             if (data.backPath() != null) {
-                drawPath(canvas, data.backPath(), offsetX, offsetY, 0, 0, 0); // чёрный
+                drawPath(canvas, data.backPath(), offsetXBack, offsetYBack, 0, 0, 0);
             }
 
             document.close();
@@ -63,21 +70,35 @@ public class PdfExportService {
 
         for (PathCommand cmd : path.getCommands()) {
             switch (cmd.getType()) {
-                case MOVE_TO -> canvas.moveTo(offsetX + (float) cmd.getX1() * SCALE,
-                        offsetY + (float) cmd.getY1() * SCALE);
-                case LINE_TO -> canvas.lineTo(offsetX + (float) cmd.getX1() * SCALE,
-                        offsetY + (float) cmd.getY1() * SCALE);
+                case MOVE_TO -> canvas.moveTo(offsetX + (float) cmd.getX1() * CM,
+                        offsetY + (float) cmd.getY1() * CM);
+                case LINE_TO -> canvas.lineTo(offsetX + (float) cmd.getX1() * CM,
+                        offsetY + (float) cmd.getY1() * CM);
                 case CURVE_TO -> canvas.curveTo(
-                        offsetX + (float) cmd.getX1() * SCALE,
-                        offsetY + (float) cmd.getY1() * SCALE,
-                        offsetX + (float) cmd.getX2() * SCALE,
-                        offsetY + (float) cmd.getY2() * SCALE,
-                        offsetX + (float) cmd.getX3() * SCALE,
-                        offsetY + (float) cmd.getY3() * SCALE
+                        offsetX + (float) cmd.getX1() * CM,
+                        offsetY + (float) cmd.getY1() * CM,
+                        offsetX + (float) cmd.getX2() * CM,
+                        offsetY + (float) cmd.getY2() * CM,
+                        offsetX + (float) cmd.getX3() * CM,
+                        offsetY + (float) cmd.getY3() * CM
                 );
             }
         }
         canvas.stroke();
+        canvas.restoreState();
+    }
+
+    private void drawControlSquare(PdfContentByte canvas, float x, float y, float cm) {
+        canvas.saveState();
+        canvas.setLineWidth(1f);
+        canvas.setRGBColorStroke(0, 0, 0);
+        float sqSize = 10 * cm;
+        canvas.rectangle(x, y, sqSize, sqSize);
+        canvas.stroke();
+        canvas.beginText();
+        canvas.setFontAndSize(com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA, 10).getBaseFont(), 10);
+        canvas.showTextAligned(com.lowagie.text.Element.ALIGN_LEFT, "10 см", x, y + sqSize + 5, 0);
+        canvas.endText();
         canvas.restoreState();
     }
 }
