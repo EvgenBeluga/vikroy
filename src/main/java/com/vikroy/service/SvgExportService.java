@@ -32,31 +32,70 @@ public class SvgExportService {
 
         // --- Сдвиг, чтобы всё было в положительной области ---
         double offsetX = 300;
-        double offsetY = 600;
+        double offsetY = 200;
 
-        // --- Построение пути (ломаная, только lineTo) ---
         StringBuilder path = new StringBuilder();
         path.append("M ").append(cx(a2x, offsetX)).append(",").append(cy(a2y, offsetY)).append(" ");
-        path.append("L ").append(cx(ax, offsetX)).append(",").append(cy(a1y, offsetY)).append(" ");
+
+// 1. Горловина А2 -> А1 (кривая)
+        path.append("C ").append(cx(a2x + 1.0, offsetX)).append(",").append(cy(a2y - 0.5, offsetY)).append(" ")
+                .append(cx(ax - 1.0, offsetX)).append(",").append(cy(a1y + 0.5, offsetY)).append(" ")
+                .append(cx(ax, offsetX)).append(",").append(cy(a1y, offsetY)).append(" ");
+
+// 2. Плечо А1 -> П1 (прямая)
         path.append("L ").append(cx(p1x, offsetX)).append(",").append(cy(p1y, offsetY)).append(" ");
-        path.append("L ").append(cx(g1x, offsetX)).append(",").append(cy(g1y, offsetY)).append(" ");
+
+// 3. Пройма П1 -> Г1 (кривая)
+        path.append("C ").append(cx(p1x - 0.5, offsetX)).append(",").append(cy(p1y - 4.0, offsetY)).append(" ")
+                .append(cx(g1x + 3.0, offsetX)).append(",").append(cy(g1y + 3.0, offsetY)).append(" ")
+                .append(cx(g1x, offsetX)).append(",").append(cy(g1y, offsetY)).append(" ");
+
+// 4. Бок Г1 -> Т1 (прямая)  <-- ЭТО ПРОПУЩЕНО
         path.append("L ").append(cx(t1x, offsetX)).append(",").append(cy(t1y, offsetY)).append(" ");
-        path.append("L ").append(cx(b2x, offsetX)).append(",").append(cy(b2y, offsetY)).append(" ");
+
+// 5. Окат спереди Т1 -> Б2 (кривая)
+        path.append("C ").append(cx(t1x + 0.5, offsetX)).append(",").append(cy(t1y - 3.0, offsetY)).append(" ")
+                .append(cx(b2x - 0.5, offsetX)).append(",").append(cy(b2y + 3.0, offsetY)).append(" ")
+                .append(cx(b2x, offsetX)).append(",").append(cy(b2y, offsetY)).append(" ");
+
+// 6. Б2 -> Б3 -> Б4 (прямые)
         path.append("L ").append(cx(b3x, offsetX)).append(",").append(cy(b3y, offsetY)).append(" ");
         path.append("L ").append(cx(b4x, offsetX)).append(",").append(cy(b4y, offsetY)).append(" ");
-        path.append("L ").append(cx(h3x, offsetX)).append(",").append(cy(h3y, offsetY)).append(" ");
-        path.append("L ").append(cx(h2x, offsetX)).append(",").append(cy(h2y, offsetY)).append(" ");
+
+// 7. Окат сзади Б4 -> Н3 -> Н2 (кривые)
+        path.append("C ").append(cx(b4x + 1.0, offsetX)).append(",").append(cy(b4y - 2.0, offsetY)).append(" ")
+                .append(cx(h3x + 2.0, offsetX)).append(",").append(cy(h3y + 1.0, offsetY)).append(" ")
+                .append(cx(h3x, offsetX)).append(",").append(cy(h3y, offsetY)).append(" ");
+        path.append("C ").append(cx(h3x - 1.0, offsetX)).append(",").append(cy(h3y - 1.0, offsetY)).append(" ")
+                .append(cx(h2x + 1.0, offsetX)).append(",").append(cy(h2y + 1.0, offsetY)).append(" ")
+                .append(cx(h2x, offsetX)).append(",").append(cy(h2y, offsetY)).append(" ");
+
+// 8. Н2 -> Н (низ, прямая)
         path.append("L ").append(cx(0, offsetX)).append(",").append(cy(hy, offsetY)).append(" ");
-        path.append("L ").append(cx(h1x, offsetX)).append(",").append(cy(h1y, offsetY)).append(" ");
-        path.append("L ").append(cx(t1x, offsetX)).append(",").append(cy(t1y, offsetY)).append(" ");
+
+// 9. Н -> Н1 (ластовица, кривая)
+        path.append("C ").append(cx(0 - 1.0, offsetX)).append(",").append(cy(hy + 1.0, offsetY)).append(" ")
+                .append(cx(h1x + 1.0, offsetX)).append(",").append(cy(h1y - 1.0, offsetY)).append(" ")
+                .append(cx(h1x, offsetX)).append(",").append(cy(h1y, offsetY)).append(" ");
+
+// 10. Н1 -> Т1 (замыкание, кривая)
+        path.append("C ").append(cx(h1x - 1.0, offsetX)).append(",").append(cy(h1y + 3.0, offsetY)).append(" ")
+                .append(cx(t1x + 1.0, offsetX)).append(",").append(cy(t1y - 3.0, offsetY)).append(" ")
+                .append(cx(t1x, offsetX)).append(",").append(cy(t1y, offsetY)).append(" ");
+
+// 11. Талия Т1 -> Т2 -> Т (прямые)
         path.append("L ").append(cx(t2x, offsetX)).append(",").append(cy(t2y, offsetY)).append(" ");
         path.append("L ").append(cx(tx, offsetX)).append(",").append(cy(ty, offsetY)).append(" ");
+
+// 12. Центр Т -> А (прямая)
         path.append("L ").append(cx(ax, offsetX)).append(",").append(cy(ay, offsetY)).append(" ");
+
+// 13. Замыкание А -> А2 (прямая)
         path.append("L ").append(cx(a2x, offsetX)).append(",").append(cy(a2y, offsetY)).append(" Z");
 
         // --- Генерация SVG ---
         String svg = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
-                "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"800\" height=\"1000\" viewBox=\"0 0 800 1000\">\n" +
+                "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"800\" height=\"1200\" viewBox=\"0 0 800 1000\">\n" +
                 "  <rect width=\"100%\" height=\"100%\" fill=\"white\"/>\n" +
                 "  <defs>\n" +
                 "    <pattern id=\"grid\" width=\"" + SCALE + "\" height=\"" + SCALE + "\" patternUnits=\"userSpaceOnUse\">\n" +

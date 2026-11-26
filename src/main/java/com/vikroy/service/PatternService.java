@@ -43,96 +43,54 @@ public class PatternService {
     private PatternPath buildBack(MeasurementProfile m) {
         PatternPath p = new PatternPath();
 
-        // --- Координаты (см) ---
+        // --- Координаты из эталона (см), ось Y ВВЕРХ ---
         double ax = 0, ay = 0;
-        double a1y = -1.5;
-        double a2x = -4.7, a2y = 0;
-        double g1x = -15.0, g1y = -10.5;
-        double p1x = -12.7, p1y = -1.5;
-        double tx = 0, ty = -28.0;
-        double t1x = -12.0, t1y = ty;
-        double t2x = -11.0, t2y = ty;
-        double hy = -52.0;
-        double b2x = -11.7, b2y = -37.8;
-        double b3x = -11.7, b3y = -38.6;
-        double b4x = -10.2, b4y = -38.6;
-        double h1x = -3.0, h1y = -46.7;
-        double h2x = -4.0, h2y = -52.0;
-        double h3x = -7.6, h3y = -45.8;
+        double a1x = 0, a1y = -2.91;
+        double gx = 0, gy = -5.60;
+        double tx = 0, ty = -10.98;
+        double hx = 0, hy = -21.20;
 
-        // --- Контур спинки (единый) ---
-        // 1. А2 (горловина)
-        p.moveTo(a2x, a2y);
+        double a1_left = -4.57;
+        double g_left = -4.16;
+        double t_left = -3.12;
+        double h_left = -3.74;
 
-        // 2. Горловина А2 -> А1 (плавная дуга, более пологая)
+        // --- Контур спинки (с плавными линиями) ---
+        // 1. А (верх)
+        p.moveTo(ax, ay);
+
+        // 2. Горловина А -> А1 (плавная дуга)
         p.curveTo(
-                a2x + 2.0, a2y - 0.5,    // cp1: сильнее вправо
-                ax - 1.5, a1y + 0.5,     // cp2: сильнее влево
-                ax, a1y
+                ax - 1.0, ay - 1.0,       // cp1: влево-вниз
+                a1x - 1.5, a1y + 1.0,     // cp2: влево-вверх
+                a1x, a1y                  // конец: А1
         );
 
         // 3. Плечо А1 -> П1 (прямая)
-        p.lineTo(p1x, p1y);
+        p.lineTo(a1_left, a1y);
 
         // 4. Пройма П1 -> Г1 (плавная кривая)
         p.curveTo(
-                p1x - 0.5, p1y - 4.0,
-                g1x + 3.0, g1y + 3.0,
-                g1x, g1y
+                a1_left - 0.5, a1y - 1.5, // cp1: влево-вниз
+                g_left + 1.0, gy + 1.0,   // cp2: вправо-вверх
+                g_left, gy                // конец: Г1
         );
 
         // 5. Бок Г1 -> Т1 (прямая)
-        p.lineTo(t1x, t1y);
+        p.lineTo(t_left, ty);
 
-        // 6. Окат спереди Т1 -> Б2 (плавная кривая)
+        // 6. Окат трусов Т1 -> Н1 (плавная кривая)
         p.curveTo(
-                t1x + 0.5, t1y - 3.0,
-                b2x - 0.5, b2y + 3.0,
-                b2x, b2y
+                t_left - 0.5, ty - 2.0,   // cp1: влево-вниз
+                h_left + 1.0, hy + 1.0,   // cp2: вправо-вверх
+                h_left, hy                // конец: Н1
         );
 
-        // 7. Б2 -> Б3 -> Б4 (прямые)
-        p.lineTo(b3x, b3y);
-        p.lineTo(b4x, b4y);
+        // 7. Низ Н1 -> Н (прямая)
+        p.lineTo(hx, hy);
 
-        // 8. Окат сзади Б4 -> Н3 -> Н2 (плавнее)
-        p.curveTo(
-                b4x + 1.0, b4y - 2.0,
-                h3x + 2.0, h3y + 1.0,    // cp2: ближе к Н3
-                h3x, h3y
-        );
-        p.curveTo(
-                h3x - 1.0, h3y - 1.0,
-                h2x + 1.0, h2y + 1.0,
-                h2x, h2y
-        );
-
-        // 9. Н2 -> Н (низ, прямая)
-        p.lineTo(0, hy);
-
-        // 10. Н -> Н1 (ластовица, плавная кривая)
-        p.curveTo(
-                0 - 1.0, hy + 1.0,
-                h1x + 1.0, h1y - 1.0,
-                h1x, h1y
-        );
-
-        // 11. Н1 -> Т1 (замыкание, плавная кривая)
-        p.curveTo(
-                h1x - 1.0, h1y + 3.0,
-                t1x + 1.0, t1y - 3.0,
-                t1x, t1y
-        );
-
-        // 12. Талия Т1 -> Т2 -> Т (прямые)
-        p.lineTo(t2x, t2y);
-        p.lineTo(tx, ty);
-
-        // 13. Центр Т -> А (прямая)
+        // 8. Центр Н -> А (прямая)
         p.lineTo(ax, ay);
-
-        // 14. Замыкание А -> А2 (прямая)
-        p.lineTo(a2x, a2y);
 
         return p;
     }
