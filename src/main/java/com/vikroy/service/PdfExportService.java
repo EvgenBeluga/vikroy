@@ -42,14 +42,14 @@ public class PdfExportService {
 
             // --- Перед (синий) ---
             float offsetXFront = MARGIN + 200;
-            float offsetYFront = pageH - MARGIN - 100;
+            float offsetYFront = pageH - MARGIN - 50; // ближе к верху
             if (data.frontPath() != null) {
                 drawPath(canvas, data.frontPath(), offsetXFront, offsetYFront, 0, 0, 255);
             }
 
             // --- Спинка (чёрный) ---
             float offsetXBack = MARGIN + 50;
-            float offsetYBack = pageH - MARGIN - 100;
+            float offsetYBack = pageH - MARGIN - 50;
             if (data.backPath() != null) {
                 drawPath(canvas, data.backPath(), offsetXBack, offsetYBack, 0, 0, 0);
             }
@@ -70,17 +70,21 @@ public class PdfExportService {
 
         for (PathCommand cmd : path.getCommands()) {
             switch (cmd.getType()) {
-                case MOVE_TO -> canvas.moveTo(offsetX + (float) cmd.getX1() * CM,
-                        offsetY + (float) cmd.getY1() * CM);
-                case LINE_TO -> canvas.lineTo(offsetX + (float) cmd.getX1() * CM,
-                        offsetY + (float) cmd.getY1() * CM);
+                case MOVE_TO -> canvas.moveTo(
+                        offsetX + (float) cmd.getX1() * CM,
+                        offsetY - (float) cmd.getY1() * CM // <-- МИНУС, ось Y вверх
+                );
+                case LINE_TO -> canvas.lineTo(
+                        offsetX + (float) cmd.getX1() * CM,
+                        offsetY - (float) cmd.getY1() * CM
+                );
                 case CURVE_TO -> canvas.curveTo(
                         offsetX + (float) cmd.getX1() * CM,
-                        offsetY + (float) cmd.getY1() * CM,
+                        offsetY - (float) cmd.getY1() * CM,
                         offsetX + (float) cmd.getX2() * CM,
-                        offsetY + (float) cmd.getY2() * CM,
+                        offsetY - (float) cmd.getY2() * CM,
                         offsetX + (float) cmd.getX3() * CM,
-                        offsetY + (float) cmd.getY3() * CM
+                        offsetY - (float) cmd.getY3() * CM
                 );
             }
         }
